@@ -1,0 +1,5 @@
+export(soda)
+export(soda_trace_CV)
+import(nnet)
+import(MASS)
+importFrom("stats", "coef", "qnorm")

@@ -1,0 +1,8 @@
+f6acb5436efc6c3ee77187d308fc7fda *DESCRIPTION
+67e09f89d0520fbaf671fa1a50bb6ea6 *NAMESPACE
+b73748ecd38caf98e3ff4e7d0320690f *R/pure_soda.R
+e00bdd10e10edb00ff954d3b2de7a336 *data/datalist
+5eb5e2076c58627efbe17db1d3e35083 *data/mich_lung.RData
+3ed18420ff8a2fe314c4590d629bab17 *man/soda.Rd
+8f02d31bab19c8d168b682f694a61ccc *man/soda_trace_CV.Rd
+ad27bd2cde5422a2c4cf3689d69f18ae *man/umich_lung.Rd
