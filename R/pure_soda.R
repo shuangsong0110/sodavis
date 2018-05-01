@@ -677,7 +677,7 @@ soda_trace_CV = function(xx, yy, res_SODA)
   ss_V    = numeric(Np);
   ss_MT   = numeric(Np);
   ss_IT   = numeric(Np);
-  ss_EBIC = numeric(Np);
+  ss_BIC = numeric(Np);
   ss_Typ  = character(Np);
   for(i in 1:Np)
   {
@@ -691,12 +691,12 @@ soda_trace_CV = function(xx, yy, res_SODA)
     ss_V[i]    = length(SS);
     ss_MT[i]   = length(TT) - sum(grepl("*",TT,fixed=T));
     ss_IT[i]   = sum(grepl("*",TT,fixed=T));
-    ss_EBIC[i] = res_SODA$EBIC[i]
+    ss_BIC[i] = res_SODA$BIC[i]
     ss_Typ[i]  = res_SODA$Type[i]
   }
   ss_mean = apply(errors_ss, 1, mean);
-  tab = data.frame(ss_Typ, ss_EBIC, ss_V, ss_MT, ss_IT, ss_mean);
-  colnames(tab) = c("Step Type", "EBIC", "# Variables", "# Main terms", "# Interactions", "CV Error");
+  tab = data.frame(ss_Typ, ss_BIC, ss_V, ss_MT, ss_IT, ss_mean);
+  colnames(tab) = c("Step Type", "BIC", "# Variables", "# Main terms", "# Interactions", "CV Error");
   return(tab);
 }
 
