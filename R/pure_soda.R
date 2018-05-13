@@ -299,6 +299,7 @@ preprocess_y = function(y)
   return(y)
 }
 
+
 #
 #    xx: explanatory variables
 #    yy: response variable
@@ -306,15 +307,15 @@ preprocess_y = function(y)
 # debug: if shows debug information
 #   gam: gamma in EBIC
 #  minF: minimum number of forward steps
-#  main_effects_only: select only main effect terms
 #
-soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
+soda = function(xx, yy, norm=F, debug=F, gam=0, minF = 3)
 {
+  if (min(yy) == 0)
+    yy = yy + 1;
+  
   K = max(yy);
   N = dim(xx)[1];
   D = dim(xx)[2];
-  
-  yy = preprocess_y(yy)
   
   minF = min(D, minF);
   
@@ -334,14 +335,16 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
   BIC  = c();
   Var  = list();
   Term = list();
+  Type = c();
   
   BIC[1]    = calc_BIC(xx, yy, c(), D, K, debug, gam=gam);
+  Type[1]   = "Init";
   Var[[1]]  = cur_set;
   Term[[1]] = c();
   
   cur_score = BIC[1];
   
-  cat(paste0("Initialization: empty set, BIC = ", sprintf("%.3f", BIC[1]), "\n\n"));
+  cat(paste0("Initialization: empty set, EBIC = ", sprintf("%.3f", BIC[1]), "\n\n"));
   
   tt = 1;
   ########################
@@ -373,7 +376,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
           ops[[n_ops]] = list();
           ops[[n_ops]]$new_set   = new_set;
           ops[[n_ops]]$new_score = new_score;
-          ops[[n_ops]]$print     = paste0("  Main effects: add variable ", jj , ": ", x_names[jj], " into selection set...  df = ", length(new_set)+1, ",  BIC = ", sprintf("%.3f",new_score));
+          ops[[n_ops]]$print     = paste0("  Main effects: add variable ", jj , ": ", x_names[jj], " into selection set...  df = ", length(new_set)+1, ",  EBIC = ", sprintf("%.3f",new_score));
         }
       }
     }
@@ -399,6 +402,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
     
     tt = tt + 1;
     BIC[tt]    = cur_score;
+    Type[[tt]] = "Forward (Main)";
     Var[[tt]]  = cur_set;
     Term[[tt]] = get_lin_terms_vec(cur_set);
     
@@ -406,79 +410,78 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
   }
   
   linear_set = cur_set;
-  cur_terms  = c();
+  cur_terms  = get_lin_terms_vec(linear_set);
   cur_set    = c();
-  cur_score  = BIC[1];
+  #   cur_score  = BIC[1];
   
   ###########################
   # Quadratic Forward Stage #
   ###########################
-  if (!main_effects_only) {
-    cat(paste0("\nForward Stage - Interactions: \n"));
-    while(T) 
+  cat(paste0("\nForward Stage - Interactions: \n"));
+  while(T) 
+  {
+    ops = list();
+    n_ops = 0;
+    
+    ######################
+    # Forward Operations #
+    ######################
+    not_set = setdiff(set_all, cur_set);
+    Nnset = length(not_set);
+    if (Nnset > 0)
     {
-      ops = list();
-      n_ops = 0;
-      
-      ######################
-      # Forward Operations #
-      ######################
-      not_set = setdiff(set_all, cur_set);
-      Nnset = length(not_set);
-      if (Nnset > 0)
+      for(j in 1:Nnset)
       {
-        for(j in 1:Nnset)
+        jj = not_set[j];
+        new_set   = sort(c(jj, cur_set));
+        new_terms = union(cur_terms, get_quad_terms_vec(new_set));
+        
+        new_score = calc_BIC(xx, yy, new_terms, D, K, debug, gam=gam);        
+        if (debug)
+          cat(paste0("  Trying to add variable ", jj , ": ", x_names[jj], " into interaction set...  D_Score: ", cur_score-new_score, "\n"));
+        if (new_score < cur_score || length(cur_set) < minF)
         {
-          jj = not_set[j];
-          new_set   = sort(c(jj, cur_set));
-          new_terms = union(cur_terms, get_quad_terms_vec(new_set));
-          
-          new_score = calc_BIC(xx, yy, new_terms, D, K, debug, gam=gam);        
-          if (debug)
-            cat(paste0("  Trying to add variable ", jj , ": ", x_names[jj], " into interaction set...  D_Score: ", cur_score-new_score, "\n"));
-          if (new_score < cur_score || length(cur_set) < minF)
-          {
-            n_ops = n_ops + 1;
-            ops[[n_ops]] = list();
-            ops[[n_ops]]$new_set   = new_set;
-            ops[[n_ops]]$new_score = new_score;
-            ops[[n_ops]]$new_terms = new_terms;
-            ops[[n_ops]]$print     = paste0("  Interactions: add variable ", jj , ": ", x_names[jj], " into selection set...  df = ", length(new_terms)+1, ",  BIC = ", sprintf("%.3f",new_score));
-          }
+          n_ops = n_ops + 1;
+          ops[[n_ops]] = list();
+          ops[[n_ops]]$new_set   = new_set;
+          ops[[n_ops]]$new_score = new_score;
+          ops[[n_ops]]$new_terms = new_terms;
+          ops[[n_ops]]$print     = paste0("  Interactions: add variable ", jj , ": ", x_names[jj], " into selection set...  df = ", length(new_terms)+1, ",  EBIC = ", sprintf("%.3f",new_score));
         }
       }
-      
-      ######################
-      # The Best Operation #
-      ######################
-      if (n_ops == 0)
-      {
-        break;
-      }
-      
-      toprint = "";
-      
-      if (length(cur_set) < minF)
-        cur_score = 1e6;
-      
-      for(i in 1:n_ops)
-      {
-        if (ops[[i]]$new_score < cur_score)
-        {
-          cur_score = ops[[i]]$new_score;
-          cur_set   = ops[[i]]$new_set;
-          toprint   = ops[[i]]$print;
-          cur_terms = ops[[i]]$new_terms;
-        }
-      }
-      
-      tt = tt + 1;
-      BIC[tt]    = cur_score;
-      Var[[tt]]  = c(setdiff(linear_set, cur_set), cur_set);
-      Term[[tt]] = cur_terms;
-      
-      cat(paste0(toprint,"\n"));
     }
+    
+    ######################
+    # The Best Operation #
+    ######################
+    if (n_ops == 0)
+    {
+      break;
+    }
+    
+    toprint = "";
+    
+    if (length(cur_set) < minF)
+      cur_score = 1e6;
+    
+    for(i in 1:n_ops)
+    {
+      if (ops[[i]]$new_score < cur_score)
+      {
+        cur_score = ops[[i]]$new_score;
+        cur_set   = ops[[i]]$new_set;
+        toprint   = ops[[i]]$print;
+        cur_terms = ops[[i]]$new_terms;
+      }
+    }
+    
+    tt = tt + 1;
+    BIC[tt]    = cur_score;
+    Type[[tt]] = "Forward (Int)";
+    Var[[tt]]  = c(setdiff(linear_set, cur_set), cur_set);
+    Term[[tt]] = cur_terms;
+    
+    cat(paste0(toprint,"\n"));
   }
   
   # set of variables at end of forward stage
@@ -486,6 +489,71 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
   int_terms = get_inter_terms_vec(cur_set);
   cur_terms = union(cur_terms, get_lin_terms_vec(linear_set))
   cur_score = calc_BIC(xx, yy, cur_terms, D, K, debug, gam=gam);
+  #   #############################
+  #   # Interaction Forward Stage #
+  #   #############################
+  #   while(T) 
+  #   {
+  #     ops = list();
+  #     n_ops = 0;
+  #     
+  #     ######################
+  #     # Forward Operations #
+  #     ######################
+  #     not_terms = setdiff(int_terms, cur_terms);
+  #     Nnset = length(not_terms);
+  #     if (Nnset > 0)
+  #     {
+  #       for(j in 1:Nnset)
+  #       {
+  #         term = not_terms[j];
+  #         new_terms = union(cur_terms, term);        
+  #         new_score = calc_BIC(xx, yy, new_terms, D, K, debug, gam=gam);        
+  #         if (debug)
+  #           cat(paste0("  Trying to add interaction ", term , " into interaction set...  D_Score: ", cur_score-new_score, "\n"));
+  #         if (new_score < cur_score)
+  #         {
+  #           n_ops = n_ops + 1;
+  #           ops[[n_ops]] = list();
+  #           ops[[n_ops]]$new_set   = cur_set;
+  #           ops[[n_ops]]$new_score = new_score;
+  #           ops[[n_ops]]$new_terms = new_terms;
+  #           ops[[n_ops]]$print     = paste0("  Interactions: add interaction ", term, " into selection set...  df = ", length(new_terms)+1, ",  EBIC = ", sprintf("%.3f",new_score));
+  #         }
+  #       }
+  #     }
+  #     
+  #     ######################
+  #     # The Best Operation #
+  #     ######################
+  #     if (n_ops == 0)
+  #     {
+  #       break;
+  #     }
+  #     
+  #     toprint = "";
+  #     
+  #     if (length(cur_set) < minF)
+  #       cur_score = 1e6;
+  #     
+  #     for(i in 1:n_ops)
+  #     {
+  #       if (ops[[i]]$new_score < cur_score)
+  #       {
+  #         cur_score = ops[[i]]$new_score;
+  #         cur_set   = ops[[i]]$new_set;
+  #         toprint   = ops[[i]]$print;
+  #         cur_terms = ops[[i]]$new_terms;
+  #       }
+  #     }
+  #     
+  #     tt = tt + 1;
+  #     BIC[tt]    = cur_score;
+  #     Var[[tt]]  = c(setdiff(linear_set, cur_set), cur_set);
+  #     Term[[tt]] = cur_terms;
+  #     
+  #     cat(paste0(toprint,"\n"));
+  #   }
   
   cat(paste0("\nBackward stage: \n"));
   ##################
@@ -508,20 +576,25 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
         {
           term = cur_terms[j];  
           new_terms = setdiff(cur_terms, term);
+          #          print("new_terms:")
+          #          print(new_terms)
           new_score = calc_BIC(xx, yy, new_terms, D, K, debug, gam=gam);
           if (debug)
           {
             term_name = get_term_name_2(x_names, term);
             cat(paste0("  Trying to remove term ", term_name, " from selection set...  Score: ", cur_score - new_score, "\n\n"));
           }
+          #           cat(paste0("new_score = ", new_score, "\n"))
+          #           cat(paste0("cur_score = ", cur_score, "\n"))
           if (new_score < cur_score)
           {
             n_ops = n_ops + 1;
             term_name = get_term_name_2(x_names, term);
             ops[[n_ops]] = list();
+            #             ops[[n_ops]]$new_set   = cur_set;
             ops[[n_ops]]$new_terms = new_terms;
             ops[[n_ops]]$new_score = new_score;
-            ops[[n_ops]]$print     = paste0("  Remove term ", term_name, " from selection set...  df = ", length(new_terms)+1, ",  BIC = ", sprintf("%.3f", new_score));
+            ops[[n_ops]]$print     = paste0("  Remove term ", term_name, " from selection set...  df = ", length(new_terms)+1, ",  EBIC = ", sprintf("%.3f", new_score));
           }
         }
       }
@@ -548,6 +621,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
       
       tt = tt + 1;
       BIC[tt]    = cur_score;
+      Type[[tt]] = "Backward";
       Var[[tt]]  = cur_set;
       Term[[tt]] = cur_terms;
       
@@ -557,6 +631,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
   
   result = list();
   result$BIC  = BIC;
+  result$Type = Type;
   result$Var  = Var;
   result$Term = Term;
   MIN_IDX = -1;
@@ -565,33 +640,37 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF=3, main_effects_only=F)
   {
     for(i in 1:tt)
     {
-#       if (BIC[i] < MIN_BIC)
+      #       if (BIC[i] < MIN_BIC)
       {
         MIN_IDX = i;
         MIN_BIC = BIC[i];
       }
     }
-    result$best_BIC  = BIC[MIN_IDX];
-    result$best_Var  = Var[[MIN_IDX]];
-    result$best_set  = Var[[MIN_IDX]];
-    result$best_Term = Term[[MIN_IDX]];
+    result$final_EBIC = BIC[MIN_IDX];
+    result$final_Var  = Var[[MIN_IDX]];
+    result$final_Term = Term[[MIN_IDX]];
+    
+    #     for(ii in 1:tt)
+    #     {
+    #       cat(paste("Iteration #", ii, ", Variables: (", paste(Var[[ii]], collapse=", "),"), Terms: (", paste0(Term[[ii]], collapse=", "), ")\n", sep=""));
+    #     }
   } 
   else 
   {
-    result$best_BIC  = BIC[1];
-    result$best_Var  = Var[[1]];
-    result$best_set  = Var[[1]];
-    result$best_Term = Term[[1]];
+    result$final_EBIC  = BIC[1];
+    result$final_Var  = Var[[1]];
+    result$final_Term = Term[[1]];
   }
-  cat(paste("\nFinal selected variables: ", paste0(x_names[result$best_Var], collapse=", ")));
+  cat(paste("\nFinal selected variables: ", paste0(x_names[result$final_Var], collapse=", ")));
   term_names = c();
-  for(term in result$best_Term)
+  for(term in result$final_Term)
   {
     term_name = get_term_name_2(x_names, term);
     term_names = c(term_names, term_name);
   }
   cat(paste("\n                   terms: ", paste0(term_names, collapse=", "), "\n"));
-
+  result$best_Var = result$final_Var
+  result$best_Term = result$final_Term
   return(result)
 }
 
