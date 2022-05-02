@@ -622,7 +622,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF = 3)
       tt = tt + 1;
       BIC[tt]    = cur_score;
       Type[[tt]] = "Backward";
-      Var[[tt]]  = cur_set;
+      Var[[tt]]  = as.character(cur_set);
       Term[[tt]] = cur_terms;
       
       cat(paste0(toprint,"\n"));
