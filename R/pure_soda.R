@@ -975,7 +975,9 @@ s_soda_pred = function(x, model, po = 1)
       if (po == 1)
         y[n] = y[n] + pp[h]*sum(model$int_m1[[h]] * cbind(1, t(as.numeric(x[n,]))));
       if (po == 2)
-        y[n] = y[n] + pp[h]*sum(model$int_m2[[h]] * cbind(1, t(as.numeric(x2[n,]))));
+        temp <- model$int_m2[[h]]
+        temp[which(is.na(temp))] <- 0
+        y[n] = y[n] + pp[h]*sum(temp * cbind(1, t(as.numeric(x2[n,]))));
     }
   }
   cat("\n")
