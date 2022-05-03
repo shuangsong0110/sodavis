@@ -622,7 +622,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF = 3)
       tt = tt + 1;
       BIC[tt]    = cur_score;
       Type[[tt]] = "Backward";
-      Var[[tt]]  = as.character(cur_set);
+      Var[[tt]]  =  cur_set;
       Term[[tt]] = cur_terms;
       
       cat(paste0(toprint,"\n"));
@@ -640,7 +640,7 @@ soda = function(xx, yy, norm=F, debug=F, gam=0, minF = 3)
   {
     for(i in 1:tt)
     {
-      #       if (BIC[i] < MIN_BIC)
+             if (BIC[i] < MIN_BIC)
       {
         MIN_IDX = i;
         MIN_BIC = BIC[i];
