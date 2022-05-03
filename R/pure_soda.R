@@ -968,16 +968,22 @@ s_soda_pred = function(x, model, po = 1)
     pp = pp / sum(pp);
     
     y[n] = 0;
-    for(h in 1:H)
-    {
-      if (po == 0)
-        y[n] = y[n] + pp[h]*(model$int_m0[[h]]);
-      if (po == 1)
-        y[n] = y[n] + pp[h]*sum(model$int_m1[[h]] * cbind(1, t(as.numeric(x[n,]))));
-      if (po == 2)
+     for(h in 1:H){
+      if (po == 0){
+        temp <- model$int_m0[[h]]
+        temp[which(is.na(temp))] <- 0
+        y[n] = y[n] + pp[h]*(temp);
+      }
+      if (po == 1){
+        temp <- model$int_m1[[h]]
+        temp[which(is.na(temp))] <- 0
+        y[n] = y[n] + pp[h]*sum(temp * cbind(1, t(as.numeric(x[n,]))));
+      }
+      if (po == 2){
         temp <- model$int_m2[[h]]
         temp[which(is.na(temp))] <- 0
         y[n] = y[n] + pp[h]*sum(temp * cbind(1, t(as.numeric(x2[n,]))));
+      }
     }
   }
   cat("\n")
